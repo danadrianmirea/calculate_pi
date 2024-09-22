@@ -3,6 +3,7 @@
 #include <thread>
 #include <vector>
 #include <boost/multiprecision/cpp_dec_float.hpp>
+#include <windows.h>
 
 using namespace boost::multiprecision;
 
@@ -45,7 +46,7 @@ int main() {
     BigFloat b = BigFloat(1) / sqrt(BigFloat(2));
     BigFloat t = BigFloat(1) / BigFloat(4);
     BigFloat p = BigFloat(1);
-    unsigned int total_iterations = 1000; // Increase for better precision
+    unsigned int total_iterations = 500; // Increase for better precision
     unsigned int num_threads = std::thread::hardware_concurrency(); // Use available threads
     unsigned int iterations_per_thread = total_iterations / num_threads;
 
@@ -53,11 +54,19 @@ int main() {
     std::vector<GaussLegendreParams> params(num_threads);
     std::vector<std::thread> threads;
 
+    // Start measuring time
+    LARGE_INTEGER start, end, frequency;
+    QueryPerformanceFrequency(&frequency); // Get the frequency of the high-resolution performance counter
+    QueryPerformanceCounter(&start);
+
     // Create threads
     for (unsigned int i = 0; i < num_threads; ++i) {
         params[i] = { a, b, t, p, iterations_per_thread, BigFloat(0) };
         threads.emplace_back(gauss_legendre_chunk, std::ref(params[i]));
     }
+
+    std::cout << "Number of created threads: " << num_threads << std::endl;
+    std::cout << "Calculating PI, please wait..." << std::endl;
 
     // Join threads
     for (auto& thread : threads) {
@@ -71,9 +80,19 @@ int main() {
     }
     pi /= num_threads; // Average the results
 
+    // Stop measuring time
+    QueryPerformanceCounter(&end);
+
+    // Calculate elapsed time
+    double elapsedTime = static_cast<double>(end.QuadPart - start.QuadPart) /
+        static_cast<double>(frequency.QuadPart);
+
     // Print the result
     std::cout << std::setprecision(100000) << std::fixed; // Set precision for output
     std::cout << "Calculated value of PI: " << pi << std::endl;
+
+    std::cout << std::setprecision(10) << std::fixed;
+    std::cout << "Execution time: " << elapsedTime << " seconds" << std::endl;
 
     return 0;
 }
